@@ -1,9 +1,13 @@
-from flask import Flask, render_template, request, redirect, flash
-import mysql.connector
-import os, subprocess
+from flask import Flask, render_template, request, redirect, flash, url_for
+
+
+import subprocess, os, mysql.connector
+from datetime import datetime
+
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_flask_flash"
+
 
 def connect_to_database():
     return mysql.connector.connect(
@@ -11,12 +15,88 @@ def connect_to_database():
         user=os.getenv("DB_USER", "root"),
         password=os.getenv("DB_PASSWORD", "rootpassword"),
         database=os.getenv("DB_NAME", "yacht_building"),
-        port=int(os.getenv("DB_PORT", 3306))
+        port=int(os.getenv("DB_PORT", 3306)),
     )
+
 
 @app.route("/")
 def home():
     return render_template("index.html")
+
+
+@app.route("/place_order", methods=["POST"])
+def place_order():
+    connection = None
+    cursor = None
+    try:
+        # Get data from the form
+        customer_name = request.form.get("name")
+        customer_email = request.form.get("email")
+        yacht_model = request.form.get("model")
+        yacht_length = int(request.form.get("length"))
+
+        # Connect to the database
+        connection = connect_to_database()
+        cursor = connection.cursor()
+
+        # Check if the customer already exists by email
+        cursor.execute(
+            "SELECT customerID FROM Customer WHERE email = %s", (customer_email,)
+        )
+        result = cursor.fetchone()
+
+        if result:
+            # Customer exists, reuse the ID
+            customer_id = result[0]
+        else:
+            # Customer doesn't exist, create a new one
+            cursor.execute(
+                "INSERT INTO Customer (name, email) VALUES (%s, %s)",
+                (customer_name, customer_email),
+            )
+            customer_id = cursor.lastrowid
+
+        # Create a new CustomerOrder
+        date_of_creation = datetime.now().strftime("%Y-%m-%d")  # Use current date
+        price = yacht_length * 1000  # Example pricing logic: $1000 per meter
+        cursor.execute(
+            "INSERT INTO CustomerOrder (dateOfCreation, price, customerID) VALUES (%s, %s, %s)",
+            (date_of_creation, price, customer_id),
+        )
+        order_id = cursor.lastrowid
+
+        # Create a new Yacht linked to the order
+        cursor.execute(
+            "SELECT IFNULL(MAX(yachtID), 0) + 1 FROM Yacht"
+        )  # Generate the next yacht ID
+        yacht_id = cursor.fetchone()[0]
+        cursor.execute(
+            "INSERT INTO Yacht (yachtID, orderID, model, length) VALUES (%s, %s, %s, %s)",
+            (yacht_id, order_id, yacht_model, yacht_length),
+        )
+
+        # Commit the transaction
+        connection.commit()
+
+        # Success message
+        success_message = f"""
+        Order successfully placed!<br>
+        Customer: {customer_name} ({customer_email})<br>
+        Yacht Model: {yacht_model}<br>
+        Yacht Length: {yacht_length} meters<br>
+        Total Price: ${price}<br>
+        Order ID: {order_id}<br>
+        Yacht ID: {yacht_id}
+        """
+        return success_message
+    except Exception as e:
+        return f"Error while placing order: {e}"
+    finally:
+        # Close cursor and connection if they were created
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 
 @app.route("/import_data", methods=["POST"])
@@ -27,6 +107,7 @@ def import_data():
     except Exception as e:
         return f"Error during data import: {e}"
 
+
 @app.route("/usecase_student2", methods=["GET", "POST"])
 def update_employee_info():
     connection = connect_to_database()
@@ -36,23 +117,27 @@ def update_employee_info():
 
     try:
         # Fetch Customer Orders with assigned Builders
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT co.orderID, co.dateOfCreation, co.price, GROUP_CONCAT(b.employeeID) AS builderIDs
             FROM CustomerOrder co
             LEFT JOIN CustomerOrderBuilder cob ON co.orderID = cob.orderID
             LEFT JOIN Builder b ON cob.employeeID = b.employeeID
             GROUP BY co.orderID;
-        """)
+        """
+        )
         orders = cursor.fetchall()
 
         # Fetch all Employees
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT e.employeeID, e.name, e.email,
                    CASE WHEN b.employeeID IS NOT NULL THEN 'Yes' ELSE 'No' END AS isBuilder,
                    b.role, b.specialization
             FROM Employee e
             LEFT JOIN Builder b ON e.employeeID = b.employeeID;
-        """)
+        """
+        )
         employees = cursor.fetchall()
 
         if request.method == "POST":
@@ -64,9 +149,14 @@ def update_employee_info():
                 error_message = "Both Order ID and Employee ID are required."
             else:
                 # Check if Order and Employee exist
-                cursor.execute("SELECT * FROM CustomerOrder WHERE orderID = %s", (order_id,))
+                cursor.execute(
+                    "SELECT * FROM CustomerOrder WHERE orderID = %s", (order_id,)
+                )
                 order = cursor.fetchone()
-                cursor.execute("SELECT e.*, b.employeeID AS isBuilder FROM Employee e LEFT JOIN Builder b ON e.employeeID = b.employeeID WHERE e.employeeID = %s", (employee_id,))
+                cursor.execute(
+                    "SELECT e.*, b.employeeID AS isBuilder FROM Employee e LEFT JOIN Builder b ON e.employeeID = b.employeeID WHERE e.employeeID = %s",
+                    (employee_id,),
+                )
                 employee = cursor.fetchone()
 
                 if not order:
@@ -77,20 +167,28 @@ def update_employee_info():
                     error_message = "The chosen employee is not a builder."
                 else:
                     # Check if the order is already assigned to the employee
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         SELECT * FROM CustomerOrderBuilder
                         WHERE orderID = %s AND employeeID = %s
-                    """, (order_id, employee_id))
+                    """,
+                        (order_id, employee_id),
+                    )
                     assignment = cursor.fetchone()
 
                     if assignment:
-                        error_message = "This order is already assigned to the chosen employee."
+                        error_message = (
+                            "This order is already assigned to the chosen employee."
+                        )
                     else:
                         # Assign the Order to the Builder
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             INSERT INTO CustomerOrderBuilder (orderID, employeeID)
                             VALUES (%s, %s)
-                        """, (order_id, employee_id))
+                        """,
+                            (order_id, employee_id),
+                        )
                         connection.commit()
                         success_message = "Order successfully assigned to the employee."
 
@@ -101,7 +199,13 @@ def update_employee_info():
         cursor.close()
         connection.close()
 
-    return render_template("usecase_student2.html", orders=orders, employees=employees, error_message=error_message, success_message=success_message)
+    return render_template(
+        "usecase_student2.html",
+        orders=orders,
+        employees=employees,
+        error_message=error_message,
+        success_message=success_message,
+    )
 
 
 if __name__ == "__main__":
