@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assign Order to Employee</title>
+</head>
+<body>
+    <h1>Use Case of Student 2 (Ovsiannikov)</h1>
+
+    <!-- Assignment Form -->
+    <h2>Assign Order to Employee</h2>
+    <form method="POST" action="/usecase_student2">
+        <label for="orderID">Order ID:</label>
+        <input type="number" id="orderID" name="orderID" required>
+        <label for="employeeID">Employee ID:</label>
+        <input type="number" id="employeeID" name="employeeID" required>
+        <button type="submit">Assign</button>
+    </form>
+
+    <!-- Display Error Message -->
+    {% if error_message %}
+        <div style="color: red;">{{ error_message }}</div>
+    {% endif %}
+
+    <!-- Display Success Message -->
+    {% if success_message %}
+        <div style="color: green;">{{ success_message }}</div>
+    {% endif %}
+
+    <!-- Customer Orders Table -->
+    <h2>Existing Customer Orders</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Date of Creation</th>
+                <th>Price</th>
+                <th>Builder IDs</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+                <tr>
+                    <td>{{ order.orderID }}</td>
+                    <td>{{ order.dateOfCreation }}</td>
+                    <td>{{ order.price }}</td>
+                    <td>{{ order.builderIDs }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Employees Table -->
+    <h2>Existing Employees</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Is Builder</th>
+                <th>Role</th>
+                <th>Specialization</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+                <tr>
+                    <td>{{ employee.employeeID }}</td>
+                    <td>{{ employee.name }}</td>
+                    <td>{{ employee.email }}</td>
+                    <td>{{ employee.isBuilder }}</td>
+                    <td>{{ employee.role }}</td>
+                    <td>{{ employee.specialization }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
