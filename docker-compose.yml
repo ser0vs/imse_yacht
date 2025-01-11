@@ -8,6 +8,7 @@ services:
     ports:
       - "3306:3306"  # Map local port 3306 to the container's port 3306
     environment:
+      MARIADB_INITDB_SKIP_TZINFO: 1
       MARIADB_ROOT_PASSWORD: root
       MARIADB_DATABASE: yacht_building
       MARIADB_USER: user
