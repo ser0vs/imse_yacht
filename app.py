@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, flash, url_for
 import subprocess
-import os
+import os, json
 import mysql.connector
 import pymongo
 from datetime import datetime, date, time
@@ -99,7 +99,6 @@ def place_order_nosql():
 @app.route("/migrate_data", methods=["POST"])
 def migrate_data():
     try:
-        # Connect to SQL and MongoDB
         sql_connection = connect_to_database()
         mongo_db = connect_to_mongo()
 
@@ -107,13 +106,31 @@ def migrate_data():
         orders_collection = mongo_db["orders"]
         employees_collection = mongo_db["employees"]
 
-        # Clear existing data in MongoDB
+        # Clear existing MongoDB data
         orders_collection.delete_many({})
         employees_collection.delete_many({})
 
         cursor = sql_connection.cursor(dictionary=True)
 
-        # Migrate Orders Collection
+        # Fetch Employees
+        cursor.execute("SELECT * FROM Employee")
+        employees = cursor.fetchall()
+
+        # Fetch Builders
+        cursor.execute(
+            """
+            SELECT e.employeeID, b.role, b.specialization
+            FROM Employee e
+            INNER JOIN Builder b ON e.employeeID = b.employeeID
+            """
+        )
+        builders = {b["employeeID"]: b for b in cursor.fetchall()}
+
+        # Fetch Buddies
+        cursor.execute("SELECT * FROM BuddyOf")
+        buddies = cursor.fetchall()
+
+        # Fetch Orders
         cursor.execute(
             """
             SELECT o.orderID, o.dateOfCreation, o.price,
@@ -124,22 +141,38 @@ def migrate_data():
         )
         orders = cursor.fetchall()
 
+        # Fetch Yachts
         cursor.execute("SELECT * FROM Yacht")
         yachts = cursor.fetchall()
 
-        cursor.execute(
-            """
-            SELECT e.employeeID, e.name, e.email,
-                   b.role, b.specialization, cob.orderID
-            FROM Employee e
-            LEFT JOIN Builder b ON e.employeeID = b.employeeID
-            LEFT JOIN CustomerOrderBuilder cob ON e.employeeID = cob.employeeID
-            """
-        )
-        builders = cursor.fetchall()
+        # Fetch Builders assigned to orders
+        cursor.execute("SELECT * FROM CustomerOrderBuilder")
+        order_builder_assignments = cursor.fetchall()
 
+        # Collecting migrated data
+        migrated_employees = []
+        migrated_orders = []
+
+        # Insert Employees into MongoDB
+        for emp in employees:
+            # Build employee document
+            emp_doc = {
+                "employeeID": emp["employeeID"],
+                "name": emp["name"],
+                "email": emp["email"],
+                "isBuilder": emp["employeeID"] in builders,
+                "role": builders.get(emp["employeeID"], {}).get("role"),
+                "specialization": builders.get(emp["employeeID"], {}).get("specialization"),
+                "buddies": [
+                    buddy["employeeID2"]
+                    for buddy in buddies
+                    if buddy["employeeID1"] == emp["employeeID"]
+                ],
+            }
+            migrated_employees.append(emp_doc)
+
+        # Insert Orders into MongoDB
         for order in orders:
-            # Get yachts associated with this order
             order_yachts = [
                 {
                     "yachtID": yacht["yachtID"],
@@ -150,83 +183,58 @@ def migrate_data():
                 if yacht["orderID"] == order["orderID"]
             ]
 
-            # Get builders associated with this order
+            # Assign builders to order
             assigned_builders = [
                 {
-                    "employeeID": builder["employeeID"],
-                    "name": builder["name"],
-                    "email": builder["email"],
-                    "role": builder["role"],
-                    "specialization": builder["specialization"],
+                    "employeeID": assignment["employeeID"],
+                    "name": next(
+                        (emp["name"] for emp in employees if emp["employeeID"] == assignment["employeeID"]),
+                        None
+                    ),
+                    "email": next(
+                        (emp["email"] for emp in employees if emp["employeeID"] == assignment["employeeID"]),
+                        None
+                    ),
+                    "role": builders.get(assignment["employeeID"], {}).get("role"),
+                    "specialization": builders.get(assignment["employeeID"], {}).get("specialization"),
                 }
-                for builder in builders
-                if builder["orderID"] == order["orderID"]
+                for assignment in order_builder_assignments
+                if assignment["orderID"] == order["orderID"]
             ]
 
-            # Handle 'dateOfCreation' properly for MongoDB.
-            # If 'order["dateOfCreation"]' is a date or datetime, PyMongo can't encode a plain date.
-            # Convert it to datetime at midnight:
+            # Convert dateOfCreation
             date_field = order["dateOfCreation"]
             if isinstance(date_field, date) and not isinstance(date_field, datetime):
                 date_field = datetime.combine(date_field, time.min)
 
-            # Insert order document into MongoDB
-            orders_collection.insert_one(
-                {
-                    "orderID": order["orderID"],
-                    "dateOfCreation": date_field,
-                    "price": order["price"],
-                    "customer": {
-                        "customerID": order["customerID"],
-                        "name": order["customerName"],
-                        "email": order["customerEmail"],
-                    },
-                    "yachts": order_yachts,
-                    "assignedBuilders": assigned_builders,
-                }
-            )
-
-        # Migrate Employees Collection
-        cursor.execute("SELECT * FROM Employee")
-        employees = cursor.fetchall()
-
-        cursor.execute("SELECT * FROM BuddyOf")
-        buddies = cursor.fetchall()
-
-        # Build a list of base employee documents
-        employee_docs = [
-            {
-                "employeeID": emp["employeeID"],
-                "name": emp["name"],
-                "email": emp["email"],
-                "role": None,
-                "specialization": None,
+            order_doc = {
+                "orderID": order["orderID"],
+                "dateOfCreation": date_field,
+                "price": order["price"],
+                "customer": {
+                    "customerID": order["customerID"],
+                    "name": order["customerName"],
+                    "email": order["customerEmail"],
+                },
+                "yachts": order_yachts,
+                "assignedBuilders": assigned_builders,
             }
-            for emp in employees
-        ]
 
-        # Add builder details
-        for builder in builders:
-            for emp in employee_docs:
-                if emp["employeeID"] == builder["employeeID"]:
-                    emp["role"] = builder["role"]
-                    emp["specialization"] = builder["specialization"]
+            migrated_orders.append(order_doc)
 
-        # Add buddy relationships
-        for emp in employee_docs:
-            emp["buddies"] = [
-                buddy["employeeID2"]
-                for buddy in buddies
-                if buddy["employeeID1"] == emp["employeeID"]
-            ]
+        # Insert data into MongoDB collections (debugging before actual insertion)
+        employees_collection.insert_many(migrated_employees)
+        orders_collection.insert_many(migrated_orders)
 
-        # Insert employee docs into MongoDB
-        employees_collection.insert_many(employee_docs)
+        # Debug print final JSON migrated data
+        debug_data = {
+            "employees": migrated_employees,
+            "orders": migrated_orders
+        }
 
-        cursor.close()
-        sql_connection.close()
+        # Print JSON debug information (formatted)
+        return f"<pre>{json.dumps(debug_data, indent=4, default=str)}</pre>"
 
-        return "Data migration completed successfully!"
     except Exception as e:
         return f"Error during data migration: {e}"
 
@@ -607,48 +615,45 @@ def report_student2():
             connection.close()
 
     return render_template("report_student2.html", builders=builders)
+    
 
-
-@app.route("/usecase_student2_nosql", methods=["POST"])
+@app.route("/usecase_student2_nosql", methods=["GET"])
 def usecase_student2_nosql():
-    """
-    Assign an existing MongoDB 'orders' doc to a builder by pushing to the 'assignedBuilders' array.
-    """
+    db = connect_to_mongo()
+    orders_coll = db.orders
+
+    error_message = ""
+
     try:
-        db = connect_to_mongo()
-        orders_coll = db.orders
+        # Fetch all orders from the collection
+        orders = list(orders_coll.find({}, {"_id": 0}))  # Exclude MongoDB `_id`
 
-        # Example: we get 'orderID' and some builder details from a form
-        order_id = int(request.form.get("orderID"))
-        employee_id = int(request.form.get("employeeID"))
-        builder_name = request.form.get("builderName")
-        builder_email = request.form.get("builderEmail")
-        builder_role = request.form.get("builderRole")
-        builder_spec = request.form.get("builderSpecialization")
+        # Prepare employees table from assignedBuilders
+        employees = []
+        employee_ids = set()  # To avoid duplicates
 
-        # Perform update in Mongo
-        result = orders_coll.update_one(
-            {"orderID": order_id},
-            {
-                "$push": {
-                    "assignedBuilders": {
-                        "employeeID": employee_id,
-                        "name": builder_name,
-                        "email": builder_email,
-                        "role": builder_role,
-                        "specialization": builder_spec
-                    }
-                }
-            }
-        )
-
-        if result.modified_count > 0:
-            return f"Order {order_id} assigned to {builder_name} (NoSQL)!"
-        else:
-            return f"Could not find order {order_id} or assignment failed."
+        for order in orders:
+            for builder in order.get("assignedBuilders", []):
+                if builder["employeeID"] not in employee_ids:
+                    employees.append({
+                        "employeeID": builder["employeeID"],
+                        "name": builder["name"],
+                        "email": builder["email"],
+                        "isBuilder": "Yes",
+                        "role": builder.get("role", ""),
+                        "specialization": builder.get("specialization", ""),
+                    })
+                    employee_ids.add(builder["employeeID"])
 
     except Exception as e:
-        return f"Error in assign_order_nosql: {e}"
+        error_message = f"An error occurred while fetching data: {e}"
+
+    return render_template(
+        "usecase_student2_nosql.html",
+        orders=orders,
+        employees=employees,
+        error_message=error_message
+    )
 
 
 

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Use Case - Student 2</title>
+</head>
+<body>
+    <h1>Customer Orders</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Date of Creation</th>
+                <th>Price</th>
+                <th>Builder IDs</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.orderID }}</td>
+                <td>{{ order.dateOfCreation }}</td>
+                <td>{{ order.price }}</td>
+                <td>
+                    {% if order.assignedBuilders %}
+                        {{ order.assignedBuilders | map(attribute='employeeID') | join(', ') }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h1>Employees</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Is Builder</th>
+                <th>Role</th>
+                <th>Specialization</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+            <tr>
+                <td>{{ employee.employeeID }}</td>
+                <td>{{ employee.name }}</td>
+                <td>{{ employee.email }}</td>
+                <td>{{ employee.isBuilder }}</td>
+                <td>{{ employee.role }}</td>
+                <td>{{ employee.specialization }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if error_message %}
+    <p style="color: red;">{{ error_message }}</p>
+    {% endif %}
+</body>
+</html>
