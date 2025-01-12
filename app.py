@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request, redirect, flash, url_for
-
-
-import subprocess, os, mysql.connector
+import subprocess, os, mysql.connector, pymongo
 from datetime import datetime
 
 
@@ -17,6 +15,139 @@ def connect_to_database():
         database=os.getenv("DB_NAME", "yacht_building"),
         port=int(os.getenv("DB_PORT", 3306)),
     )
+
+
+# Connect to MongoDB
+def connect_to_mongo():
+    mongo_client = pymongo.MongoClient("mongodb://localhost:27017/")
+    return mongo_client["yacht_building"]
+
+
+# Data Migration Function
+@app.route("/migrate_data", methods=["POST"])
+def migrate_data():
+    try:
+        # Connect to SQL and MongoDB
+        sql_connection = connect_to_database()
+        mongo_db = connect_to_mongo()
+
+        # MongoDB collections
+        orders_collection = mongo_db["orders"]
+        employees_collection = mongo_db["employees"]
+
+        # Clear existing data in MongoDB
+        orders_collection.delete_many({})
+        employees_collection.delete_many({})
+
+        cursor = sql_connection.cursor(dictionary=True)
+
+        # Migrate Orders Collection
+        cursor.execute(
+            """
+            SELECT o.orderID, o.dateOfCreation, o.price, c.customerID, c.name AS customerName, c.email AS customerEmail
+            FROM CustomerOrder o
+            JOIN Customer c ON o.customerID = c.customerID
+        """
+        )
+        orders = cursor.fetchall()
+
+        cursor.execute("SELECT * FROM Yacht")
+        yachts = cursor.fetchall()
+
+        cursor.execute(
+            """
+            SELECT e.employeeID, e.name, e.email, b.role, b.specialization, cob.orderID
+            FROM Employee e
+            LEFT JOIN Builder b ON e.employeeID = b.employeeID
+            LEFT JOIN CustomerOrderBuilder cob ON e.employeeID = cob.employeeID
+        """
+        )
+        builders = cursor.fetchall()
+
+        for order in orders:
+            # Get yachts associated with this order
+            order_yachts = [
+                {
+                    "yachtID": yacht["yachtID"],
+                    "model": yacht["model"],
+                    "length": yacht["length"],
+                }
+                for yacht in yachts
+                if yacht["orderID"] == order["orderID"]
+            ]
+
+            # Get builders associated with this order
+            assigned_builders = [
+                {
+                    "employeeID": builder["employeeID"],
+                    "name": builder["name"],
+                    "email": builder["email"],
+                    "role": builder["role"],
+                    "specialization": builder["specialization"],
+                }
+                for builder in builders
+                if builder["orderID"] == order["orderID"]
+            ]
+
+            # Insert order document
+            orders_collection.insert_one(
+                {
+                    "orderID": order["orderID"],
+                    "dateOfCreation": datetime.strptime(
+                        order["dateOfCreation"], "%Y-%m-%d"
+                    ),
+                    "price": order["price"],
+                    "customer": {
+                        "customerID": order["customerID"],
+                        "name": order["customerName"],
+                        "email": order["customerEmail"],
+                    },
+                    "yachts": order_yachts,
+                    "assignedBuilders": assigned_builders,
+                }
+            )
+
+        # Migrate Employees Collection
+        cursor.execute("SELECT * FROM Employee")
+        employees = cursor.fetchall()
+
+        cursor.execute("SELECT * FROM BuddyOf")
+        buddies = cursor.fetchall()
+
+        employee_docs = [
+            {
+                "employeeID": emp["employeeID"],
+                "name": emp["name"],
+                "email": emp["email"],
+                "role": None,
+                "specialization": None,
+            }
+            for emp in employees
+        ]
+
+        # Add builder details
+        for builder in builders:
+            for emp in employee_docs:
+                if emp["employeeID"] == builder["employeeID"]:
+                    emp["role"] = builder["role"]
+                    emp["specialization"] = builder["specialization"]
+
+        # Add buddy relationships
+        for emp in employee_docs:
+            emp["buddies"] = [
+                buddy["employeeID2"]
+                for buddy in buddies
+                if buddy["employeeID1"] == emp["employeeID"]
+            ]
+
+        employees_collection.insert_many(employee_docs)
+
+        cursor.close()
+        sql_connection.close()
+
+        return "Data migration completed successfully!"
+    except Exception as e:
+        return f"Error during data migration: {e}"
 
 
 @app.route("/")
@@ -269,6 +400,7 @@ def update_employee_info():
         error_message=error_message,
         success_message=success_message,
     )
+
 
 @app.route("/report_student2", methods=["GET", "POST"])
 def report_student2():

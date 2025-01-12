@@ -6,9 +6,10 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "5001:5001"  # Expose Flask app on port 5000
+      - "5001:5001"
     depends_on:
-      - mariadb  # Ensure MariaDB starts before the app
+      - mariadb
+      - mongodb
     environment:
       DB_HOST: mariadb
       DB_PORT: 3306
@@ -16,12 +17,16 @@ services:
       DB_USER: root
       DB_PASSWORD: rootpassword
 
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_DB: yacht_building_nosql
+
   mariadb:
     image: mariadb:10.5
     container_name: mariadb_container
     restart: always
     ports:
-      - "3306:3306"  # Expose MariaDB on port 3306
+      - "3306:3306"
     environment:
       MARIADB_ROOT_PASSWORD: rootpassword
       MARIADB_DATABASE: yacht_building
@@ -29,5 +34,15 @@ services:
       - db_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb_container
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
 volumes:
   db_data:
+  mongo_data:
