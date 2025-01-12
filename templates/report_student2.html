@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Builder-Yacht Report</title>
+</head>
+<body>
+    <form action="/" method="get">
+        <button type="submit">Go to Menu</button>
+    </form>
+    <h1>Builder-Yacht Report</h1>
+    <form action="/report_student2" method="post">
+        <label for="specialization">Specialization:</label>
+        <input type="text" id="specialization" name="specialization" placeholder="Enter specialization">
+        <button type="submit">Filter</button>
+    </form>
+
+    <br><br>
+    {% if builders %}
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Employee ID</th>
+                    <th>Builder Name</th>
+                    <th>Role</th>
+                    <th>Specialization</th>
+                    <th>Yacht ID</th>
+                    <th>Yacht Model</th>
+                    <th>Yacht Length</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in builders %}
+                    <tr>
+                        <td>{{ row['employeeID'] }}</td>
+                        <td>{{ row['builderName'] }}</td>
+                        <td>{{ row['builderRole'] }}</td>
+                        <td>{{ row['builderSpecialization'] }}</td>
+                        <td>{{ row['yachtID'] }}</td>
+                        <td>{{ row['yachtModel'] }}</td>
+                        <td>{{ row['yachtLength'] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No data available for the given specialization.</p>
+    {% endif %}
+</body>
+</html>
