@@ -24,6 +24,11 @@ def home():
     return render_template("index.html")
 
 
+@app.route("/place_order_form", methods=["GET"])
+def place_order_form():
+    return render_template("place_order.html")
+
+
 @app.route("/place_order", methods=["POST"])
 def place_order():
     connection = None
@@ -97,6 +102,64 @@ def place_order():
             cursor.close()
         if connection:
             connection.close()
+
+
+@app.route("/orders_summary", methods=["GET", "POST"])
+def orders_summary():
+    """Displays a form for filtering orders by date range and shows results."""
+    filtered_orders = []
+    error_message = None
+
+    if request.method == "POST":
+        start_date = request.form.get("start_date")
+        end_date = request.form.get("end_date")
+
+        # Basic validation
+        if not start_date or not end_date:
+            error_message = "Both start date and end date are required."
+        else:
+            try:
+                connection = connect_to_database()
+                cursor = connection.cursor(dictionary=True)
+
+                # Construct and execute the SQL query
+                sql_query = """
+                SELECT
+                    co.orderID,
+                    c.customerID,
+                    c.name AS customerName,
+                    y.yachtID,
+                    y.model AS yachtModel,
+                    e.employeeID,
+                    e.name AS builderName,
+                    b.specialization AS builderSpecialization
+                FROM
+                    CustomerOrder co
+                    JOIN Customer c ON co.customerID = c.customerID
+                    JOIN Yacht y ON y.orderID = co.orderID
+                    LEFT JOIN CustomerOrderBuilder cob ON cob.orderID = co.orderID
+                    LEFT JOIN Builder b ON cob.employeeID = b.employeeID
+                    LEFT JOIN Employee e ON b.employeeID = e.employeeID
+                WHERE
+                    co.dateOfCreation BETWEEN %s AND %s
+                """
+
+                cursor.execute(sql_query, (start_date, end_date))
+                filtered_orders = cursor.fetchall()
+
+            except Exception as e:
+                error_message = f"An error occurred while fetching data: {e}"
+            finally:
+                if cursor:
+                    cursor.close()
+                if connection:
+                    connection.close()
+
+    return render_template(
+        "orders_summary.html",
+        filtered_orders=filtered_orders,
+        error_message=error_message,
+    )
 
 
 @app.route("/import_data", methods=["POST"])
