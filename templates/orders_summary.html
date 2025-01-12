@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Orders Summary</title>
+  </head>
+  <body>
+    <h1>Orders Summary</h1>
+
+    <!-- Display any error messages -->
+    {% if error_message %}
+    <p style="color: red">{{ error_message }}</p>
+    {% endif %}
+
+    <!-- Date range form -->
+    <form method="POST">
+      <label for="start_date">Start Date:</label>
+      <input type="date" id="start_date" name="start_date" required />
+
+      <label for="end_date">End Date:</label>
+      <input type="date" id="end_date" name="end_date" required />
+
+      <button type="submit">Filter</button>
+    </form>
+
+    <!-- Results Table -->
+    {% if filtered_orders and filtered_orders|length > 0 %}
+    <h2>Filtered Orders ({{ filtered_orders|length }} results)</h2>
+    <table border="1" cellpadding="5">
+      <tr>
+        <th>Order ID</th>
+        <th>Customer ID</th>
+        <th>Customer Name</th>
+        <th>Yacht ID</th>
+        <th>Yacht Model</th>
+        <th>Builder Employee ID</th>
+        <th>Builder Name</th>
+        <th>Builder Specialization</th>
+      </tr>
+      {% for row in filtered_orders %}
+      <tr>
+        <td>{{ row.orderID }}</td>
+        <td>{{ row.customerID }}</td>
+        <td>{{ row.customerName }}</td>
+        <td>{{ row.yachtID }}</td>
+        <td>{{ row.yachtModel }}</td>
+        <td>{{ row.employeeID }}</td>
+        <td>{{ row.builderName }}</td>
+        <td>{{ row.builderSpecialization }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p>No orders to display. Please select a date range above.</p>
+    {% endif %}
+
+    <br />
+    <a href="{{ url_for('home') }}">Back to Home</a>
+  </body>
+</html>
