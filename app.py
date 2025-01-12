@@ -24,6 +24,11 @@ def home():
     return render_template("index.html")
 
 
+@app.route("/place_order_form", methods=["GET"])
+def place_order_form():
+    return render_template("place_order.html")
+
+
 @app.route("/place_order", methods=["POST"])
 def place_order():
     connection = None
@@ -132,9 +137,9 @@ def orders_summary():
                     CustomerOrder co
                     JOIN Customer c ON co.customerID = c.customerID
                     JOIN Yacht y ON y.orderID = co.orderID
-                    JOIN CustomerOrderBuilder cob ON cob.orderID = co.orderID
-                    JOIN Builder b ON cob.employeeID = b.employeeID
-                    JOIN Employee e ON b.employeeID = e.employeeID
+                    LEFT JOIN CustomerOrderBuilder cob ON cob.orderID = co.orderID
+                    LEFT JOIN Builder b ON cob.employeeID = b.employeeID
+                    LEFT JOIN Employee e ON b.employeeID = e.employeeID
                 WHERE
                     co.dateOfCreation BETWEEN %s AND %s
                 """
