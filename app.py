@@ -235,6 +235,10 @@ def migrate_data():
 def home():
     return render_template("index.html")
 
+@app.route("/index_nosql", methods=["GET"])
+def nosql_page():
+    return render_template("index_nosql.html")
+
 
 @app.route("/place_order_form", methods=["GET"])
 def place_order_form():
