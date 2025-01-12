@@ -270,6 +270,85 @@ def update_employee_info():
         success_message=success_message,
     )
 
+@app.route("/report_student2", methods=["GET", "POST"])
+def report_student2():
+    connection = None
+    cursor = None
+    builders = []
+    specialization = ""
+
+    try:
+        if request.method == "POST":
+            # Get specialization from the form
+            specialization = request.form.get("specialization", "").strip()
+
+        connection = connect_to_database()
+        cursor = connection.cursor(dictionary=True)
+
+        # Build SQL query with optional specialization filter
+        if specialization:
+            query = """
+                SELECT 
+                    b.specialization AS builderSpecialization,    
+                    e.employeeID,
+                    e.name AS builderName,
+                    b.role AS builderRole,
+                    y.yachtID,
+                    y.model AS yachtModel,
+                    y.length AS yachtLength
+                FROM 
+                    Builder b
+                JOIN 
+                    Employee e ON b.employeeID = e.employeeID
+                JOIN 
+                    CustomerOrderBuilder cob ON b.employeeID = cob.employeeID
+                JOIN 
+                    CustomerOrder co ON cob.orderID = co.orderID
+                JOIN 
+                    Yacht y ON co.orderID = y.orderID
+                WHERE 
+                    b.specialization = %s
+                ORDER BY 
+                    e.employeeID, b.role ASC, e.name ASC
+            """
+            cursor.execute(query, (specialization,))
+        else:
+            query = """
+                SELECT 
+                    b.specialization AS builderSpecialization,    
+                    e.employeeID,
+                    e.name AS builderName,
+                    b.role AS builderRole,
+                    y.yachtID,
+                    y.model AS yachtModel,
+                    y.length AS yachtLength
+                FROM 
+                    Builder b
+                JOIN 
+                    Employee e ON b.employeeID = e.employeeID
+                JOIN 
+                    CustomerOrderBuilder cob ON b.employeeID = cob.employeeID
+                JOIN 
+                    CustomerOrder co ON cob.orderID = co.orderID
+                JOIN 
+                    Yacht y ON co.orderID = y.orderID
+                ORDER BY 
+                    e.employeeID, b.role ASC, e.name ASC
+            """
+            cursor.execute(query)
+
+        builders = cursor.fetchall()
+
+    except Exception as e:
+        return f"An error occurred: {e}"
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+    return render_template("report_student2.html", builders=builders)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
