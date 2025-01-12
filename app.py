@@ -605,6 +605,111 @@ def report_student2():
     return render_template("report_student2.html", builders=builders)
 
 
+@app.route("/usecase_student2_nosql", methods=["POST"])
+def usecase_student2_nosql():
+    """
+    Assign an existing MongoDB 'orders' doc to a builder by pushing to the 'assignedBuilders' array.
+    """
+    try:
+        db = connect_to_mongo()
+        orders_coll = db.orders
+
+        # Example: we get 'orderID' and some builder details from a form
+        order_id = int(request.form.get("orderID"))
+        employee_id = int(request.form.get("employeeID"))
+        builder_name = request.form.get("builderName")
+        builder_email = request.form.get("builderEmail")
+        builder_role = request.form.get("builderRole")
+        builder_spec = request.form.get("builderSpecialization")
+
+        # Perform update in Mongo
+        result = orders_coll.update_one(
+            {"orderID": order_id},
+            {
+                "$push": {
+                    "assignedBuilders": {
+                        "employeeID": employee_id,
+                        "name": builder_name,
+                        "email": builder_email,
+                        "role": builder_role,
+                        "specialization": builder_spec
+                    }
+                }
+            }
+        )
+
+        if result.modified_count > 0:
+            return f"Order {order_id} assigned to {builder_name} (NoSQL)!"
+        else:
+            return f"Could not find order {order_id} or assignment failed."
+
+    except Exception as e:
+        return f"Error in assign_order_nosql: {e}"
+
+
+
+@app.route("/report_student2_nosql", methods=["GET", "POST"])
+def report_student2_nosql():
+    """
+    NoSQL-based builder specialization report.
+    """
+    db = connect_to_mongo()
+    orders_coll = db.orders
+
+    builders = []
+    error_message = None
+    specialization = ""
+
+    if request.method == "POST":
+        specialization = request.form.get("specialization", "").strip()
+        try:
+            pipeline = []
+
+            # If user specified a specialization, match it
+            if specialization:
+                pipeline.append({
+                    "$match": {
+                        "assignedBuilders.specialization": specialization
+                    }
+                })
+
+            # Unwind assignedBuilders to treat each builder as a row
+            pipeline.append({"$unwind": "$assignedBuilders"})
+
+            # If we matched above, filter again
+            if specialization:
+                pipeline.append({
+                    "$match": {
+                        "assignedBuilders.specialization": specialization
+                    }
+                })
+
+            pipeline.append({
+                "$project": {
+                    "_id": 0,
+                    "builder.employeeID": "$assignedBuilders.employeeID",
+                    "builder.name": "$assignedBuilders.name",
+                    "builder.role": "$assignedBuilders.role",
+                    "builder.specialization": "$assignedBuilders.specialization",
+                    "yachts": 1
+                }
+            })
+
+            pipeline.append({"$sort": {"builder.employeeID": 1}})
+
+            results = list(orders_coll.aggregate(pipeline))
+            builders = results
+
+        except Exception as e:
+            error_message = f"Mongo error: {e}"
+
+    return render_template("report_student2_nosql.html",
+                           builders=builders,
+                           error_message=error_message)
+
+
+
+
 if __name__ == "__main__":
     # Run the Flask app on 0.0.0.0 so Docker can map the port
     app.run(host="0.0.0.0", port=5001, debug=True)
