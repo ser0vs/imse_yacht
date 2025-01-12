@@ -30,6 +30,71 @@ def connect_to_mongo():
     return mongo_client[db_name]
 
 
+@app.route("/place_order_form_nosql", methods=["GET"])
+def place_order_form_nosql():
+    return render_template("place_order_nosql.html")
+
+
+@app.route("/place_order_nosql", methods=["POST"])
+def place_order_nosql():
+    try:
+        # Get data from the form
+        customer_name = request.form.get("name")
+        customer_email = request.form.get("email")
+        yacht_model = request.form.get("model")
+        yacht_length = int(request.form.get("length"))
+
+        # Connect to MongoDB
+        mongo_db = connect_to_mongo()
+        orders_collection = mongo_db["orders"]
+
+        # Check if the customer already exists in the orders collection
+        existing_customer = orders_collection.find_one(
+            {"customer.email": customer_email}
+        )
+
+        if existing_customer:
+            # Reuse customer details
+            customer_id = existing_customer["customer"]["customerID"]
+        else:
+            # Generate a new customer ID (e.g., UUID or an increment)
+            customer_id = orders_collection.estimated_document_count() + 1
+
+        # Generate a new order ID
+        order_id = orders_collection.estimated_document_count() + 1
+
+        # Insert the new order into MongoDB
+        orders_collection.insert_one(
+            {
+                "orderID": order_id,
+                "dateOfCreation": datetime.now(),
+                "price": yacht_length * 1000,  # Example pricing logic
+                "customer": {
+                    "customerID": customer_id,
+                    "name": customer_name,
+                    "email": customer_email,
+                },
+                "yacht": {
+                    "model": yacht_model,
+                    "length": yacht_length,
+                },
+            }
+        )
+
+        # Success message
+        success_message = f"""
+        Order successfully placed!<br>
+        Customer: {customer_name} ({customer_email})<br>
+        Yacht Model: {yacht_model}<br>
+        Yacht Length: {yacht_length} meters<br>
+        Total Price: ${yacht_length * 1000}<br>
+        Order ID: {order_id}<br>
+        """
+        return success_message
+    except Exception as e:
+        return f"Error while placing order (NoSQL): {e}"
+
+
 # Data Migration Function
 @app.route("/migrate_data", methods=["POST"])
 def migrate_data():
@@ -245,6 +310,52 @@ def place_order():
             cursor.close()
         if connection:
             connection.close()
+
+
+@app.route("/orders_summary_nosql", methods=["GET", "POST"])
+def orders_summary_nosql():
+    filtered_orders = []
+    error_message = None
+
+    try:
+        # Connect to MongoDB
+        mongo_db = connect_to_mongo()
+        orders_collection = mongo_db["orders"]
+
+        if request.method == "POST":
+            start_date = request.form.get("start_date")
+            end_date = request.form.get("end_date")
+
+            # Basic validation
+            if not start_date or not end_date:
+                error_message = "Both start date and end date are required."
+            else:
+                try:
+                    # Convert input dates to datetime objects
+                    start_date = datetime.strptime(start_date, "%Y-%m-%d")
+                    end_date = datetime.strptime(end_date, "%Y-%m-%d")
+
+                    # Query MongoDB for orders within the date range
+                    filtered_orders = list(
+                        orders_collection.find(
+                            {
+                                "dateOfCreation": {
+                                    "$gte": start_date,
+                                    "$lte": end_date,
+                                },
+                            }
+                        )
+                    )
+                except Exception as e:
+                    error_message = f"An error occurred while fetching data: {e}"
+    except Exception as e:
+        error_message = f"An error occurred: {e}"
+
+    return render_template(
+        "orders_summary_nosql.html",
+        filtered_orders=filtered_orders,
+        error_message=error_message,
+    )
 
 
 @app.route("/orders_summary", methods=["GET", "POST"])
