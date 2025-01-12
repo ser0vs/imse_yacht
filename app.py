@@ -1,12 +1,15 @@
 from flask import Flask, render_template, request, redirect, flash, url_for
-import subprocess, os, mysql.connector, pymongo
-from datetime import datetime
-
+import subprocess
+import os
+import mysql.connector
+import pymongo
+from datetime import datetime, date, time
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_flask_flash"
 
 
+# Connect to MySQL
 def connect_to_database():
     return mysql.connector.connect(
         host=os.getenv("DB_HOST", "localhost"),
@@ -17,10 +20,14 @@ def connect_to_database():
     )
 
 
-# Connect to MongoDB
+# Connect to MongoDB (use environment variables for host, port, db name)
 def connect_to_mongo():
-    mongo_client = pymongo.MongoClient("mongodb://localhost:27017/")
-    return mongo_client["yacht_building"]
+    host = os.getenv("MONGO_HOST", "mongodb")
+    port = os.getenv("MONGO_PORT", "27017")
+    db_name = os.getenv("MONGO_DB", "yacht_building_nosql")
+
+    mongo_client = pymongo.MongoClient(f"mongodb://{host}:{port}/")
+    return mongo_client[db_name]
 
 
 # Data Migration Function
@@ -44,10 +51,11 @@ def migrate_data():
         # Migrate Orders Collection
         cursor.execute(
             """
-            SELECT o.orderID, o.dateOfCreation, o.price, c.customerID, c.name AS customerName, c.email AS customerEmail
+            SELECT o.orderID, o.dateOfCreation, o.price,
+                   c.customerID, c.name AS customerName, c.email AS customerEmail
             FROM CustomerOrder o
             JOIN Customer c ON o.customerID = c.customerID
-        """
+            """
         )
         orders = cursor.fetchall()
 
@@ -56,11 +64,12 @@ def migrate_data():
 
         cursor.execute(
             """
-            SELECT e.employeeID, e.name, e.email, b.role, b.specialization, cob.orderID
+            SELECT e.employeeID, e.name, e.email,
+                   b.role, b.specialization, cob.orderID
             FROM Employee e
             LEFT JOIN Builder b ON e.employeeID = b.employeeID
             LEFT JOIN CustomerOrderBuilder cob ON e.employeeID = cob.employeeID
-        """
+            """
         )
         builders = cursor.fetchall()
 
@@ -89,13 +98,18 @@ def migrate_data():
                 if builder["orderID"] == order["orderID"]
             ]
 
-            # Insert order document
+            # Handle 'dateOfCreation' properly for MongoDB.
+            # If 'order["dateOfCreation"]' is a date or datetime, PyMongo can't encode a plain date.
+            # Convert it to datetime at midnight:
+            date_field = order["dateOfCreation"]
+            if isinstance(date_field, date) and not isinstance(date_field, datetime):
+                date_field = datetime.combine(date_field, time.min)
+
+            # Insert order document into MongoDB
             orders_collection.insert_one(
                 {
                     "orderID": order["orderID"],
-                    "dateOfCreation": datetime.strptime(
-                        order["dateOfCreation"], "%Y-%m-%d"
-                    ),
+                    "dateOfCreation": date_field,
                     "price": order["price"],
                     "customer": {
                         "customerID": order["customerID"],
@@ -114,6 +128,7 @@ def migrate_data():
         cursor.execute("SELECT * FROM BuddyOf")
         buddies = cursor.fetchall()
 
+        # Build a list of base employee documents
         employee_docs = [
             {
                 "employeeID": emp["employeeID"],
@@ -140,6 +155,7 @@ def migrate_data():
                 if buddy["employeeID1"] == emp["employeeID"]
             ]
 
+        # Insert employee docs into MongoDB
         employees_collection.insert_many(employee_docs)
 
         cursor.close()
@@ -194,7 +210,7 @@ def place_order():
 
         # Create a new CustomerOrder
         date_of_creation = datetime.now().strftime("%Y-%m-%d")  # Use current date
-        price = yacht_length * 1000  # Example pricing logic: $1000 per meter
+        price = yacht_length * 1000  # Example pricing logic
         cursor.execute(
             "INSERT INTO CustomerOrder (dateOfCreation, price, customerID) VALUES (%s, %s, %s)",
             (date_of_creation, price, customer_id),
@@ -202,16 +218,13 @@ def place_order():
         order_id = cursor.lastrowid
 
         # Create a new Yacht linked to the order
-        cursor.execute(
-            "SELECT IFNULL(MAX(yachtID), 0) + 1 FROM Yacht"
-        )  # Generate the next yacht ID
+        cursor.execute("SELECT IFNULL(MAX(yachtID), 0) + 1 FROM Yacht")
         yacht_id = cursor.fetchone()[0]
         cursor.execute(
             "INSERT INTO Yacht (yachtID, orderID, model, length) VALUES (%s, %s, %s, %s)",
             (yacht_id, order_id, yacht_model, yacht_length),
         )
 
-        # Commit the transaction
         connection.commit()
 
         # Success message
@@ -228,7 +241,6 @@ def place_order():
     except Exception as e:
         return f"Error while placing order: {e}"
     finally:
-        # Close cursor and connection if they were created
         if cursor:
             cursor.close()
         if connection:
@@ -237,7 +249,6 @@ def place_order():
 
 @app.route("/orders_summary", methods=["GET", "POST"])
 def orders_summary():
-    """Displays a form for filtering orders by date range and shows results."""
     filtered_orders = []
     error_message = None
 
@@ -253,7 +264,6 @@ def orders_summary():
                 connection = connect_to_database()
                 cursor = connection.cursor(dictionary=True)
 
-                # Construct and execute the SQL query
                 sql_query = """
                 SELECT
                     co.orderID,
@@ -277,7 +287,6 @@ def orders_summary():
 
                 cursor.execute(sql_query, (start_date, end_date))
                 filtered_orders = cursor.fetchall()
-
             except Exception as e:
                 error_message = f"An error occurred while fetching data: {e}"
             finally:
@@ -313,12 +322,13 @@ def update_employee_info():
         # Fetch Customer Orders with assigned Builders
         cursor.execute(
             """
-            SELECT co.orderID, co.dateOfCreation, co.price, GROUP_CONCAT(b.employeeID) AS builderIDs
+            SELECT co.orderID, co.dateOfCreation, co.price,
+                   GROUP_CONCAT(b.employeeID) AS builderIDs
             FROM CustomerOrder co
             LEFT JOIN CustomerOrderBuilder cob ON co.orderID = cob.orderID
             LEFT JOIN Builder b ON cob.employeeID = b.employeeID
-            GROUP BY co.orderID;
-        """
+            GROUP BY co.orderID
+            """
         )
         orders = cursor.fetchall()
 
@@ -329,8 +339,8 @@ def update_employee_info():
                    CASE WHEN b.employeeID IS NOT NULL THEN 'Yes' ELSE 'No' END AS isBuilder,
                    b.role, b.specialization
             FROM Employee e
-            LEFT JOIN Builder b ON e.employeeID = b.employeeID;
-        """
+            LEFT JOIN Builder b ON e.employeeID = b.employeeID
+            """
         )
         employees = cursor.fetchall()
 
@@ -348,7 +358,12 @@ def update_employee_info():
                 )
                 order = cursor.fetchone()
                 cursor.execute(
-                    "SELECT e.*, b.employeeID AS isBuilder FROM Employee e LEFT JOIN Builder b ON e.employeeID = b.employeeID WHERE e.employeeID = %s",
+                    """
+                    SELECT e.*, b.employeeID AS isBuilder
+                    FROM Employee e
+                    LEFT JOIN Builder b ON e.employeeID = b.employeeID
+                    WHERE e.employeeID = %s
+                    """,
                     (employee_id,),
                 )
                 employee = cursor.fetchone()
@@ -365,7 +380,7 @@ def update_employee_info():
                         """
                         SELECT * FROM CustomerOrderBuilder
                         WHERE orderID = %s AND employeeID = %s
-                    """,
+                        """,
                         (order_id, employee_id),
                     )
                     assignment = cursor.fetchone()
@@ -380,15 +395,13 @@ def update_employee_info():
                             """
                             INSERT INTO CustomerOrderBuilder (orderID, employeeID)
                             VALUES (%s, %s)
-                        """,
+                            """,
                             (order_id, employee_id),
                         )
                         connection.commit()
                         success_message = "Order successfully assigned to the employee."
-
     except Exception as e:
         error_message = f"An error occurred: {e}"
-
     finally:
         cursor.close()
         connection.close()
@@ -470,7 +483,6 @@ def report_student2():
             cursor.execute(query)
 
         builders = cursor.fetchall()
-
     except Exception as e:
         return f"An error occurred: {e}"
     finally:
@@ -483,4 +495,5 @@ def report_student2():
 
 
 if __name__ == "__main__":
+    # Run the Flask app on 0.0.0.0 so Docker can map the port
     app.run(host="0.0.0.0", port=5001, debug=True)
