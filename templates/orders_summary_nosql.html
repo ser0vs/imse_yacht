@@ -40,6 +40,9 @@
           <li>Model: {{ yacht['model'] }} (Length: {{ yacht['length'] }} m)</li>
           {% endfor %}
         </ul>
+        {% elif order.get('yacht') %}
+        <strong>Yacht Model:</strong> {{ order['yacht']['model'] }}<br />
+        <strong>Yacht Length:</strong> {{ order['yacht']['length'] }} meters<br />
         {% else %}
         <strong>Yacht:</strong> No yacht information available.<br />
         {% endif %}
