@@ -5,6 +5,9 @@
     <title>Place a Customer Order (NoSQL)</title>
   </head>
   <body>
+    <form action="/index_nosql" method="get">
+      <button type="submit">Go to Menu</button>
+    </form>
     <h1>Place a Customer Order (NoSQL)</h1>
 
     {% if error_message %}
@@ -57,6 +60,6 @@
     </form>
 
     <br />
-    <a href="{{ url_for('home') }}">Back to Home</a>
+    
   </body>
 </html>

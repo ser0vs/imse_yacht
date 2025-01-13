@@ -5,6 +5,9 @@
     <title>Orders Summary</title>
   </head>
   <body>
+    <form action="/" method="get">
+      <button type="submit">Go to Menu</button>
+    </form>
     <h1>Orders Summary</h1>
 
     <!-- Display any error messages -->
@@ -54,7 +57,5 @@
     <p>No orders to display. Please select a date range above.</p>
     {% endif %}
 
-    <br />
-    <a href="{{ url_for('home') }}">Back to Home</a>
   </body>
 </html>
