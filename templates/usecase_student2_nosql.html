@@ -1,9 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Use Case - Student 2</title>
+    <title>Use Case in NoSQL of Student 2 (Ovsiannikov)</title>
 </head>
 <body>
+    <h1>Use Case in NoSQL of Student 2 (Ovsiannikov)</h1>
+
+    <!-- Form to assign builder to an order -->
+    <form method="POST" action="/usecase_student2_nosql">
+        <label for="orderID">Order ID:</label>
+        <input type="text" id="orderID" name="orderID" required>
+        <label for="employeeID">Employee ID:</label>
+        <input type="text" id="employeeID" name="employeeID" required>
+        <button type="submit">Assign</button>
+    </form>
+
+    <!-- Error or success message -->
+    {% if error_message %}
+    <p style="color: red;">{{ error_message }}</p>
+    {% elif success_message %}
+    <p style="color: green;">{{ success_message }}</p>
+    {% endif %}
+
+    <!-- Tables for orders and employees -->
     <h1>Customer Orders</h1>
     <table border="1">
         <thead>
@@ -57,9 +76,5 @@
             {% endfor %}
         </tbody>
     </table>
-
-    {% if error_message %}
-    <p style="color: red;">{{ error_message }}</p>
-    {% endif %}
 </body>
 </html>

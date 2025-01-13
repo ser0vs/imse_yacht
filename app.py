@@ -617,19 +617,22 @@ def report_student2():
     return render_template("report_student2.html", builders=builders)
     
 
-@app.route("/usecase_student2_nosql", methods=["GET"])
+
+@app.route("/usecase_student2_nosql", methods=["GET", "POST"])
 def usecase_student2_nosql():
     db = connect_to_mongo()
     orders_coll = db.orders
-
+    employees_coll = db.employees  # Access employees collection
     error_message = ""
+    success_message = ""
+    orders = []
+    employees = []
 
     try:
         # Fetch all orders from the collection
         orders = list(orders_coll.find({}, {"_id": 0}))  # Exclude MongoDB `_id`
 
         # Prepare employees table from assignedBuilders
-        employees = []
         employee_ids = set()  # To avoid duplicates
 
         for order in orders:
@@ -645,16 +648,52 @@ def usecase_student2_nosql():
                     })
                     employee_ids.add(builder["employeeID"])
 
+        if request.method == "POST":
+            # Retrieve data from the form
+            order_id = int(request.form["orderID"])
+            employee_id = int(request.form["employeeID"])
+
+            # Validate orderID existence
+            order = orders_coll.find_one({"orderID": order_id})
+            if not order:
+                error_message = f"Order with ID {order_id} does not exist."
+            else:
+                # Validate employeeID existence and builder status
+                employee = employees_coll.find_one({"employeeID": employee_id})
+                if not employee:
+                    error_message = f"Employee with ID {employee_id} does not exist."
+                elif not employee.get("isBuilder", False):
+                    error_message = f"Employee with ID {employee_id} is not a builder."
+                else:
+                    # Check if the employee is already assigned to the order
+                    if any(builder["employeeID"] == employee_id for builder in order.get("assignedBuilders", [])):
+                        error_message = f"Order {order_id} is already assigned to Employee {employee_id}."
+                    else:
+                        # Assign the employee to the order
+                        orders_coll.update_one(
+                            {"orderID": order_id},
+                            {"$push": {"assignedBuilders": {
+                                "employeeID": employee["employeeID"],
+                                "name": employee["name"],
+                                "email": employee["email"],
+                                "role": employee.get("role", ""),
+                                "specialization": employee.get("specialization", "")
+                            }}}
+                        )
+                        success_message = f"Employee {employee_id} successfully assigned to Order {order_id}."
+
     except Exception as e:
-        error_message = f"An error occurred while fetching data: {e}"
+        error_message = f"An error occurred: {e}"
 
     return render_template(
         "usecase_student2_nosql.html",
         orders=orders,
         employees=employees,
-        error_message=error_message
+        error_message=error_message,
+        success_message=success_message
     )
 
+    
 
 
 @app.route("/report_student2_nosql", methods=["GET", "POST"])
