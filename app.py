@@ -693,68 +693,47 @@ def usecase_student2_nosql():
         success_message=success_message
     )
 
-    
-
 
 @app.route("/report_student2_nosql", methods=["GET", "POST"])
 def report_student2_nosql():
-    """
-    NoSQL-based builder specialization report.
-    """
     db = connect_to_mongo()
-    orders_coll = db.orders
-
+    orders_coll = db.orders  # NoSQL orders collection
+    specialization_filter = None
     builders = []
-    error_message = None
-    specialization = ""
 
-    if request.method == "POST":
-        specialization = request.form.get("specialization", "").strip()
-        try:
-            pipeline = []
+    try:
+        if request.method == "POST":
+            # Fetch the specialization filter from the form
+            specialization_filter = request.form.get("specialization", "").strip()
 
-            # If user specified a specialization, match it
-            if specialization:
-                pipeline.append({
-                    "$match": {
-                        "assignedBuilders.specialization": specialization
-                    }
-                })
+        # Query all orders from the collection
+        orders = list(orders_coll.find({}, {"_id": 0}))
 
-            # Unwind assignedBuilders to treat each builder as a row
-            pipeline.append({"$unwind": "$assignedBuilders"})
+        # Iterate over orders to extract builders and their yachts
+        for order in orders:
+            yachts = order.get("yachts", [])  # Fetch yachts array for the order
+            for builder in order.get("assignedBuilders", []):
+                # Apply specialization filter if specified
+                if specialization_filter and builder.get("specialization", "") != specialization_filter:
+                    continue
 
-            # If we matched above, filter again
-            if specialization:
-                pipeline.append({
-                    "$match": {
-                        "assignedBuilders.specialization": specialization
-                    }
-                })
+                # Join builder with each yacht in the order
+                for yacht in yachts:
+                    builders.append({
+                        "employeeID": builder["employeeID"],
+                        "builderName": builder["name"],
+                        "builderRole": builder.get("role", ""),
+                        "builderSpecialization": builder.get("specialization", ""),
+                        "yachtID": yacht["yachtID"],
+                        "yachtModel": yacht.get("model", "N/A"),
+                        "yachtLength": yacht.get("length", "N/A"),
+                    })
 
-            pipeline.append({
-                "$project": {
-                    "_id": 0,
-                    "builder.employeeID": "$assignedBuilders.employeeID",
-                    "builder.name": "$assignedBuilders.name",
-                    "builder.role": "$assignedBuilders.role",
-                    "builder.specialization": "$assignedBuilders.specialization",
-                    "yachts": 1
-                }
-            })
+    except Exception as e:
+        error_message = f"An error occurred: {e}"
+        return render_template("report_student2_nosql.html", builders=[], error_message=error_message)
 
-            pipeline.append({"$sort": {"builder.employeeID": 1}})
-
-            results = list(orders_coll.aggregate(pipeline))
-            builders = results
-
-        except Exception as e:
-            error_message = f"Mongo error: {e}"
-
-    return render_template("report_student2_nosql.html",
-                           builders=builders,
-                           error_message=error_message)
-
+    return render_template("report_student2_nosql.html", builders=builders)
 
 
 
