@@ -4,31 +4,74 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Database Management (NoSQL)</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f8ff;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      h1, h2 {
+        color: #333;
+      }
+
+      form {
+        margin: 10px 0;
+      }
+
+      button {
+        background-color: #add8e6;
+        color: #333;
+        border: 2px solid #add8e6;
+        padding: 10px 20px;
+        border-radius: 15px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #87cefa;
+        border-color: #87cefa;
+      }
+
+      button:focus {
+        outline: none;
+      }
+
+      a {
+        text-decoration: none;
+      }
+    </style>
   </head>
   <body>
     
     <h1>Yacht Database Management (NoSQL)</h1>
-    
-    <form action="/" method="get">
-      <button type="submit">Go to SQL page</button>
-    </form>
 
     <h2>Student 1 (Curanov)</h2>
     <form action="/place_order_form_nosql" method="get">
-      <button type="submit">Go to Order Form (NoSQL - Student 1)</button>
+      <button type="submit">Place a Customer Order</button>
     </form>
     <br>
     <form action="/orders_summary_nosql" method="get">
-      <button type="submit">Go to Orders Summary (NoSQL - Student 1)</button>
+      <button type="submit">View Orders Summary</button>
     </form>
     <br>
 
     <h2>Student 2 (Ovsiannikov)</h2>
     <form action="/usecase_student2_nosql" method="get">
-      <button type="submit">Add Order to Employee (NoSQL - Student 2)</button>
+      <button type="submit">Add Order to Employee</button>
     </form>
     
     <br>
-    <a href="/report_student2_nosql"><button type="button">View Builder-Yacht Report (NoSQL - Student 2)</button></a>
+    <a href="/report_student2_nosql"><button type="button">View Builder-Yacht Report</button></a>
+    <br><br><br><br>
+    <form action="/" method="get">
+      <button type="submit">Go to SQL page</button>
+    </form>
   </body>
 </html>

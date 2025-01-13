@@ -4,9 +4,53 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Database Management</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f8ff;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      h1, h2 {
+        color: #333;
+      }
+
+      form {
+        margin: 10px 0;
+      }
+
+      button {
+        background-color: #add8e6;
+        color: #333;
+        border: 2px solid #add8e6;
+        padding: 10px 20px;
+        border-radius: 15px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #87cefa;
+        border-color: #87cefa;
+      }
+
+      button:focus {
+        outline: none;
+      }
+
+      a {
+        text-decoration: none;
+      }
+    </style>
   </head>
   <body>
-    <h1>Yacht Database Management</h1>
+    <h1>Yacht Database Management (SQL)</h1>
+
     <form action="/import_data" method="post">
       <button type="submit">Import Randomized Data</button>
     </form>
@@ -20,24 +64,20 @@
       <button type="submit">View Orders Summary</button>
     </form>
     <br />
+
     <h2>Student 2 (Ovsiannikov)</h2>
     <form action="/usecase_student2" method="post">
-      <button type="submit">Add order to Employee</button>
+      <button type="submit">Add Order to Employee</button>
     </form>
     <br>
     <a href="/report_student2"><button type="button">View Builder-Yacht Report</button></a>
-    <br>
-    <br>
+    <br><br>
 
     <h2>SQL to MongoDB</h2>
     <form action="/migrate_data" method="post">
       <button type="submit">Migrate Data to MongoDB</button>
     </form>
     <br>
-    <!-- Button to navigate to the NoSQL Operations page -->
     <a href="/index_nosql"><button type="button">NoSQL Operations</button></a>
-
-
-
   </body>
 </html>

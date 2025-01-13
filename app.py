@@ -232,8 +232,7 @@ def migrate_data():
             "orders": migrated_orders
         }
 
-        # Print JSON debug information (formatted)
-        return f"<pre>{json.dumps(debug_data, indent=4, default=str)}</pre>"
+        return f"Data successfully migrated!"
 
     except Exception as e:
         return f"Error during data migration: {e}"

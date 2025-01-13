@@ -3,6 +3,102 @@
   <head>
     <meta charset="UTF-8" />
     <title>Orders Summary (NoSQL)</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f8ff;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+      }
+
+      h1, h2 {
+        color: #333;
+      }
+
+      form {
+        margin: 10px 0;
+      }
+
+      button {
+        background-color: #add8e6;
+        color: #333;
+        border: 2px solid #add8e6;
+        padding: 10px 20px;
+        border-radius: 15px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #87cefa;
+        border-color: #87cefa;
+      }
+
+      button:focus {
+        outline: none;
+      }
+
+      label {
+        font-size: 16px;
+        margin: 5px 0;
+        display: inline-block;
+        color: #333;
+      }
+
+      input[type="date"] {
+        padding: 8px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        margin-bottom: 10px;
+        width: 200px;
+      }
+
+      input[type="date"]:focus {
+        outline: none;
+        border-color: #87cefa;
+      }
+
+      .error-message {
+        color: red;
+      }
+
+      ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      li {
+        background-color: #fff;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      li strong {
+        color: #333;
+      }
+
+      .yacht-info {
+        padding-left: 20px;
+        list-style-type: square;
+      }
+
+      .yachts-list {
+        margin-top: 10px;
+      }
+
+      a {
+        text-decoration: none;
+      }
+    </style>
   </head>
   <body>
     <form action="/index_nosql" method="get">
@@ -11,7 +107,7 @@
     <h1>Orders Summary (NoSQL)</h1>
 
     {% if error_message %}
-    <p style="color: red">{{ error_message }}</p>
+    <p class="error-message">{{ error_message }}</p>
     {% endif %}
 
     <form method="post" action="/orders_summary_nosql">
@@ -38,7 +134,7 @@
         <strong>Price:</strong> ${{ order['price'] }}<br />
         {% if order.get('yachts') and order['yachts']|length > 0 %}
         <strong>Yachts:</strong>
-        <ul>
+        <ul class="yacht-info">
           {% for yacht in order['yachts'] %}
           <li>Model: {{ yacht['model'] }} (Length: {{ yacht['length'] }} m)</li>
           {% endfor %}

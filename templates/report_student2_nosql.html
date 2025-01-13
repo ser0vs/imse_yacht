@@ -4,12 +4,125 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Builder-Yacht Report</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f8ff;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      h1 {
+        color: #333;
+      }
+
+      form {
+        margin: 20px 0;
+        width: 100%;
+        max-width: 600px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      label {
+        font-size: 16px;
+        color: #333;
+        margin-bottom: 5px;
+      }
+
+      input {
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        margin-bottom: 15px;
+        width: 100%;
+      }
+
+      input:focus {
+        border-color: #87cefa;
+        outline: none;
+      }
+
+      button {
+        background-color: #add8e6;
+        color: #333;
+        border: 2px solid #add8e6;
+        padding: 10px 20px;
+        border-radius: 15px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #87cefa;
+        border-color: #87cefa;
+      }
+
+      button:focus {
+        outline: none;
+      }
+
+      .error-message {
+        color: red;
+        font-size: 16px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      th, td {
+        padding: 12px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #f1f1f1;
+      }
+
+      td {
+        border-top: 1px solid #f1f1f1;
+      }
+
+      .back-button {
+        background-color: #f0f8ff;
+        color: #333;
+        border: 2px solid #ccc;
+        padding: 10px 20px;
+        border-radius: 15px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-bottom: 20px;
+      }
+
+      .back-button:hover {
+        background-color: #87cefa;
+        border-color: #87cefa;
+      }
+    </style>
 </head>
 <body>
+
     <form action="/index_nosql" method="get">
-        <button type="submit">Go to Menu</button>
+        <button type="submit" class="back-button">Go to Menu</button>
     </form>
     <h1>Builder-Yacht Report</h1>
+
     <form action="/report_student2_nosql" method="post">
         <label for="specialization">Specialization:</label>
         <input type="text" id="specialization" name="specialization" placeholder="Enter specialization">
@@ -18,7 +131,7 @@
 
     <br><br>
     {% if builders %}
-        <table border="1">
+        <table>
             <thead>
                 <tr>
                     <th>Employee ID</th>

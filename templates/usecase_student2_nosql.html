@@ -1,33 +1,163 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Use Case in NoSQL of Student 2 (Ovsiannikov)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        form {
+            margin: 20px 0;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        input:focus {
+            border-color: #87cefa;
+            outline: none;
+        }
+
+        button {
+            background-color: #add8e6;
+            color: #333;
+            border: 2px solid #add8e6;
+            padding: 10px 20px;
+            border-radius: 15px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #87cefa;
+            border-color: #87cefa;
+        }
+
+        button:focus {
+            outline: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f1f1f1;
+        }
+
+        td {
+            border-top: 1px solid #f1f1f1;
+        }
+
+        .back-button {
+            background-color: #f0f8ff;
+            color: #333;
+            border: 2px solid #ccc;
+            padding: 10px 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .back-button:hover {
+            background-color: #87cefa;
+            border-color: #87cefa;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .error {
+            background-color: #ffdddd;
+            color: #e60000;
+        }
+
+        .success {
+            background-color: #ddffdd;
+            color: #009900;
+        }
+
+    </style>
 </head>
 <body>
+
     <form action="/index_nosql" method="get">
-        <button type="submit">Go to Menu</button>
+        <button type="submit" class="back-button">Go to Menu</button>
     </form>
+
     <h1>Use Case in NoSQL of Student 2 (Ovsiannikov)</h1>
 
     <!-- Form to assign builder to an order -->
     <form method="POST" action="/usecase_student2_nosql">
         <label for="orderID">Order ID:</label>
         <input type="text" id="orderID" name="orderID" required>
+
         <label for="employeeID">Employee ID:</label>
         <input type="text" id="employeeID" name="employeeID" required>
+
         <button type="submit">Assign</button>
     </form>
 
     <!-- Error or success message -->
     {% if error_message %}
-    <p style="color: red;">{{ error_message }}</p>
+    <div class="message error">{{ error_message }}</div>
     {% elif success_message %}
-    <p style="color: green;">{{ success_message }}</p>
+    <div class="message success">{{ success_message }}</div>
     {% endif %}
 
     <!-- Tables for orders and employees -->
     <h1>Customer Orders</h1>
-    <table border="1">
+    <table>
         <thead>
             <tr>
                 <th>Order ID</th>
@@ -55,7 +185,7 @@
     </table>
 
     <h1>Employees</h1>
-    <table border="1">
+    <table>
         <thead>
             <tr>
                 <th>Employee ID</th>
@@ -79,5 +209,6 @@
             {% endfor %}
         </tbody>
     </table>
+
 </body>
 </html>

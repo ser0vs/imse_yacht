@@ -4,10 +4,135 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assign Order to Employee</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+
+        form {
+            margin: 20px 0;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        input:focus {
+            border-color: #87cefa;
+            outline: none;
+        }
+
+        button {
+            background-color: #add8e6;
+            color: #333;
+            border: 2px solid #add8e6;
+            padding: 10px 20px;
+            border-radius: 15px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #87cefa;
+            border-color: #87cefa;
+        }
+
+        button:focus {
+            outline: none;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .error {
+            background-color: #ffdddd;
+            color: #e60000;
+        }
+
+        .success {
+            background-color: #ddffdd;
+            color: #009900;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f1f1f1;
+        }
+
+        td {
+            border-top: 1px solid #f1f1f1;
+        }
+
+        .back-button {
+            background-color: #f0f8ff;
+            color: #333;
+            border: 2px solid #ccc;
+            padding: 10px 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .back-button:hover {
+            background-color: #87cefa;
+            border-color: #87cefa;
+        }
+
+    </style>
 </head>
 <body>
+
     <form action="/" method="get">
-        <button type="submit">Go to Menu</button>
+        <button type="submit" class="back-button">Go to Menu</button>
     </form>
 
     <h1>Use Case of Student 2 (Ovsiannikov)</h1>
@@ -17,24 +142,26 @@
     <form method="POST" action="/usecase_student2">
         <label for="orderID">Order ID:</label>
         <input type="number" id="orderID" name="orderID" required>
+
         <label for="employeeID">Employee ID:</label>
         <input type="number" id="employeeID" name="employeeID" required>
+
         <button type="submit">Assign</button>
     </form>
 
     <!-- Display Error Message -->
     {% if error_message %}
-        <div style="color: red;">{{ error_message }}</div>
+        <div class="message error">{{ error_message }}</div>
     {% endif %}
 
     <!-- Display Success Message -->
     {% if success_message %}
-        <div style="color: green;">{{ success_message }}</div>
+        <div class="message success">{{ success_message }}</div>
     {% endif %}
 
     <!-- Customer Orders Table -->
     <h2>Existing Customer Orders</h2>
-    <table border="1">
+    <table>
         <thead>
             <tr>
                 <th>Order ID</th>
@@ -57,7 +184,7 @@
 
     <!-- Employees Table -->
     <h2>Existing Employees</h2>
-    <table border="1">
+    <table>
         <thead>
             <tr>
                 <th>Employee ID</th>
@@ -81,5 +208,6 @@
             {% endfor %}
         </tbody>
     </table>
+
 </body>
 </html>
