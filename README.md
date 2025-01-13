@@ -2,6 +2,7 @@
 
 ## Prerequisites
 - docker
+- docker-compose
 - cloned repository
 
 ## How to start
