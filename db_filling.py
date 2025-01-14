@@ -36,7 +36,6 @@ def get_next_yacht_id(cursor):
 def populate_database(cursor):
     fake = Faker()
 
-    # --- 1) Create Customers ---
     customers = []
     for _ in range(10):
         name = fake.name()
@@ -46,7 +45,6 @@ def populate_database(cursor):
         )
         customers.append(cursor.lastrowid)
 
-    # --- 2) Create Orders ---
     orders = []
     for _ in range(20):
         customer_id = fake.random_element(customers)
@@ -58,8 +56,6 @@ def populate_database(cursor):
         )
         orders.append(cursor.lastrowid)
 
-    # --- 3) Ensure Each Order Has At Least One Yacht ---
-    # We'll create exactly 1 yacht for each order.
     next_yacht_id = get_next_yacht_id(cursor)
     for order_id in orders:
         model = fake.word()
@@ -70,19 +66,7 @@ def populate_database(cursor):
         )
         next_yacht_id += 1
 
-    # OPTIONAL: If you want extra random yachts, uncomment below:
-    #
-    # for _ in range(10):  # or however many extra yachts you want
-    #     order_id = fake.random_element(orders)
-    #     model = fake.word()
-    #     length = fake.random_int(min=10, max=100)
-    #     cursor.execute(
-    #         "INSERT INTO Yacht (yachtID, model, length, orderID) VALUES (%s, %s, %s, %s)",
-    #         (next_yacht_id, model, length, order_id),
-    #     )
-    #     next_yacht_id += 1
 
-    # --- 4) Create Employees ---
     employees = []
     for _ in range(15):
         name = fake.name()
@@ -92,11 +76,10 @@ def populate_database(cursor):
         )
         employees.append(cursor.lastrowid)
 
-    # --- 5) Create Some Builders ---
+
     builders = []
-    # Pick 10 random employees to be builders
     for employee_id in fake.random_sample(employees, 10):
-        role = fake.job()  # e.g. "Software Engineer", "Carpenter", ...
+        role = fake.job()
         specialization = fake.word()
         cursor.execute(
             "INSERT INTO Builder (employeeID, role, specialization) VALUES (%s, %s, %s)",
@@ -104,7 +87,6 @@ def populate_database(cursor):
         )
         builders.append(employee_id)
 
-    # --- 6) Buddy Relationships ---
     for _ in range(10):
         emp1, emp2 = fake.random_sample(employees, 2)
         cursor.execute(
@@ -112,7 +94,7 @@ def populate_database(cursor):
             (emp1, emp2),
         )
 
-    # --- 7) Assign Some Builders to Some Orders ---
+
     used_pairs = set()
     for _ in range(20):
         while True:

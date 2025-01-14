@@ -9,7 +9,6 @@ app = Flask(__name__)
 app.secret_key = "secret_key_for_flask_flash"
 
 
-# Connect to MySQL
 def connect_to_database():
     return mysql.connector.connect(
         host=os.getenv("DB_HOST", "localhost"),
@@ -20,7 +19,7 @@ def connect_to_database():
     )
 
 
-# Connect to MongoDB (use environment variables for host, port, db name)
+
 def connect_to_mongo():
     host = os.getenv("MONGO_HOST", "mongodb")
     port = os.getenv("MONGO_PORT", "27017")
@@ -38,37 +37,30 @@ def place_order_form_nosql():
 @app.route("/place_order_nosql", methods=["POST"])
 def place_order_nosql():
     try:
-        # Get data from the form
         customer_name = request.form.get("name")
         customer_email = request.form.get("email")
         yacht_model = request.form.get("model")
         yacht_length = int(request.form.get("length"))
 
-        # Connect to MongoDB
         mongo_db = connect_to_mongo()
         orders_collection = mongo_db["orders"]
 
-        # Check if the customer already exists in the orders collection
         existing_customer = orders_collection.find_one(
             {"customer.email": customer_email}
         )
 
         if existing_customer:
-            # Reuse customer details
             customer_id = existing_customer["customer"]["customerID"]
         else:
-            # Generate a new customer ID (e.g., UUID or an increment)
             customer_id = orders_collection.estimated_document_count() + 1
 
-        # Generate a new order ID
         order_id = orders_collection.estimated_document_count() + 1
 
-        # Insert the new order into MongoDB
         orders_collection.insert_one(
             {
                 "orderID": order_id,
                 "dateOfCreation": datetime.now(),
-                "price": yacht_length * 1000,  # Example pricing logic
+                "price": yacht_length * 1000,
                 "customer": {
                     "customerID": customer_id,
                     "name": customer_name,
@@ -81,7 +73,6 @@ def place_order_nosql():
             }
         )
 
-        # Success message
         success_message = f"""
         Order successfully placed!<br>
         Customer: {customer_name} ({customer_email})<br>
@@ -95,28 +86,23 @@ def place_order_nosql():
         return f"Error while placing order (NoSQL): {e}"
 
 
-# Data Migration Function
 @app.route("/migrate_data", methods=["POST"])
 def migrate_data():
     try:
         sql_connection = connect_to_database()
         mongo_db = connect_to_mongo()
 
-        # MongoDB collections
         orders_collection = mongo_db["orders"]
         employees_collection = mongo_db["employees"]
 
-        # Clear existing MongoDB data
         orders_collection.delete_many({})
         employees_collection.delete_many({})
 
         cursor = sql_connection.cursor(dictionary=True)
 
-        # Fetch Employees
         cursor.execute("SELECT * FROM Employee")
         employees = cursor.fetchall()
 
-        # Fetch Builders
         cursor.execute(
             """
             SELECT e.employeeID, b.role, b.specialization
@@ -126,11 +112,9 @@ def migrate_data():
         )
         builders = {b["employeeID"]: b for b in cursor.fetchall()}
 
-        # Fetch Buddies
         cursor.execute("SELECT * FROM BuddyOf")
         buddies = cursor.fetchall()
 
-        # Fetch Orders
         cursor.execute(
             """
             SELECT o.orderID, o.dateOfCreation, o.price,
@@ -141,21 +125,16 @@ def migrate_data():
         )
         orders = cursor.fetchall()
 
-        # Fetch Yachts
         cursor.execute("SELECT * FROM Yacht")
         yachts = cursor.fetchall()
 
-        # Fetch Builders assigned to orders
         cursor.execute("SELECT * FROM CustomerOrderBuilder")
         order_builder_assignments = cursor.fetchall()
 
-        # Collecting migrated data
         migrated_employees = []
         migrated_orders = []
 
-        # Insert Employees into MongoDB
         for emp in employees:
-            # Build employee document
             emp_doc = {
                 "employeeID": emp["employeeID"],
                 "name": emp["name"],
@@ -171,7 +150,6 @@ def migrate_data():
             }
             migrated_employees.append(emp_doc)
 
-        # Insert Orders into MongoDB
         for order in orders:
             order_yachts = [
                 {
@@ -183,7 +161,6 @@ def migrate_data():
                 if yacht["orderID"] == order["orderID"]
             ]
 
-            # Assign builders to order
             assigned_builders = [
                 {
                     "employeeID": assignment["employeeID"],
@@ -202,7 +179,6 @@ def migrate_data():
                 if assignment["orderID"] == order["orderID"]
             ]
 
-            # Convert dateOfCreation
             date_field = order["dateOfCreation"]
             if isinstance(date_field, date) and not isinstance(date_field, datetime):
                 date_field = datetime.combine(date_field, time.min)
@@ -222,11 +198,9 @@ def migrate_data():
 
             migrated_orders.append(order_doc)
 
-        # Insert data into MongoDB collections (debugging before actual insertion)
         employees_collection.insert_many(migrated_employees)
         orders_collection.insert_many(migrated_orders)
 
-        # Debug print final JSON migrated data
         debug_data = {
             "employees": migrated_employees,
             "orders": migrated_orders
@@ -257,43 +231,36 @@ def place_order():
     connection = None
     cursor = None
     try:
-        # Get data from the form
         customer_name = request.form.get("name")
         customer_email = request.form.get("email")
         yacht_model = request.form.get("model")
         yacht_length = int(request.form.get("length"))
 
-        # Connect to the database
         connection = connect_to_database()
         cursor = connection.cursor()
 
-        # Check if the customer already exists by email
         cursor.execute(
             "SELECT customerID FROM Customer WHERE email = %s", (customer_email,)
         )
         result = cursor.fetchone()
 
         if result:
-            # Customer exists, reuse the ID
             customer_id = result[0]
         else:
-            # Customer doesn't exist, create a new one
             cursor.execute(
                 "INSERT INTO Customer (name, email) VALUES (%s, %s)",
                 (customer_name, customer_email),
             )
             customer_id = cursor.lastrowid
 
-        # Create a new CustomerOrder
-        date_of_creation = datetime.now().strftime("%Y-%m-%d")  # Use current date
-        price = yacht_length * 1000  # Example pricing logic
+        date_of_creation = datetime.now().strftime("%Y-%m-%d")
+        price = yacht_length * 1000
         cursor.execute(
             "INSERT INTO CustomerOrder (dateOfCreation, price, customerID) VALUES (%s, %s, %s)",
             (date_of_creation, price, customer_id),
         )
         order_id = cursor.lastrowid
 
-        # Create a new Yacht linked to the order
         cursor.execute("SELECT IFNULL(MAX(yachtID), 0) + 1 FROM Yacht")
         yacht_id = cursor.fetchone()[0]
         cursor.execute(
@@ -303,7 +270,6 @@ def place_order():
 
         connection.commit()
 
-        # Success message
         success_message = f"""
         Order successfully placed!<br>
         Customer: {customer_name} ({customer_email})<br>
@@ -329,7 +295,6 @@ def orders_summary_nosql():
     error_message = None
 
     try:
-        # Connect to MongoDB
         mongo_db = connect_to_mongo()
         orders_collection = mongo_db["orders"]
 
@@ -337,16 +302,13 @@ def orders_summary_nosql():
             start_date = request.form.get("start_date")
             end_date = request.form.get("end_date")
 
-            # Basic validation
             if not start_date or not end_date:
                 error_message = "Both start date and end date are required."
             else:
                 try:
-                    # Convert input dates to datetime objects
                     start_date = datetime.strptime(start_date, "%Y-%m-%d")
                     end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
-                    # Query MongoDB for orders within the date range
                     filtered_orders = list(
                         orders_collection.find(
                             {
@@ -378,7 +340,6 @@ def orders_summary():
         start_date = request.form.get("start_date")
         end_date = request.form.get("end_date")
 
-        # Basic validation
         if not start_date or not end_date:
             error_message = "Both start date and end date are required."
         else:
@@ -441,7 +402,6 @@ def update_employee_info():
     success_message = ""
 
     try:
-        # Fetch Customer Orders with assigned Builders
         cursor.execute(
             """
             SELECT co.orderID, co.dateOfCreation, co.price,
@@ -454,7 +414,6 @@ def update_employee_info():
         )
         orders = cursor.fetchall()
 
-        # Fetch all Employees
         cursor.execute(
             """
             SELECT e.employeeID, e.name, e.email,
@@ -470,11 +429,9 @@ def update_employee_info():
             order_id = request.form.get("orderID")
             employee_id = request.form.get("employeeID")
 
-            # Validate input
             if not order_id or not employee_id:
                 error_message = "Both Order ID and Employee ID are required."
             else:
-                # Check if Order and Employee exist
                 cursor.execute(
                     "SELECT * FROM CustomerOrder WHERE orderID = %s", (order_id,)
                 )
@@ -497,7 +454,6 @@ def update_employee_info():
                 elif not employee["isBuilder"]:
                     error_message = "The chosen employee is not a builder."
                 else:
-                    # Check if the order is already assigned to the employee
                     cursor.execute(
                         """
                         SELECT * FROM CustomerOrderBuilder
@@ -512,7 +468,6 @@ def update_employee_info():
                             "This order is already assigned to the chosen employee."
                         )
                     else:
-                        # Assign the Order to the Builder
                         cursor.execute(
                             """
                             INSERT INTO CustomerOrderBuilder (orderID, employeeID)
@@ -546,13 +501,11 @@ def report_student2():
 
     try:
         if request.method == "POST":
-            # Get specialization from the form
             specialization = request.form.get("specialization", "").strip()
 
         connection = connect_to_database()
         cursor = connection.cursor(dictionary=True)
 
-        # Build SQL query with optional specialization filter
         if specialization:
             query = """
                 SELECT 
@@ -621,18 +574,16 @@ def report_student2():
 def usecase_student2_nosql():
     db = connect_to_mongo()
     orders_coll = db.orders
-    employees_coll = db.employees  # Access employees collection
+    employees_coll = db.employees
     error_message = ""
     success_message = ""
     orders = []
     employees = []
 
     try:
-        # Fetch all orders from the collection
-        orders = list(orders_coll.find({}, {"_id": 0}))  # Exclude MongoDB `_id`
+        orders = list(orders_coll.find({}, {"_id": 0}))
 
-        # Prepare employees table from assignedBuilders
-        employee_ids = set()  # To avoid duplicates
+        employee_ids = set()
 
         for order in orders:
             for builder in order.get("assignedBuilders", []):
@@ -648,27 +599,22 @@ def usecase_student2_nosql():
                     employee_ids.add(builder["employeeID"])
 
         if request.method == "POST":
-            # Retrieve data from the form
             order_id = int(request.form["orderID"])
             employee_id = int(request.form["employeeID"])
 
-            # Validate orderID existence
             order = orders_coll.find_one({"orderID": order_id})
             if not order:
                 error_message = f"Order with ID {order_id} does not exist."
             else:
-                # Validate employeeID existence and builder status
                 employee = employees_coll.find_one({"employeeID": employee_id})
                 if not employee:
                     error_message = f"Employee with ID {employee_id} does not exist."
                 elif not employee.get("isBuilder", False):
                     error_message = f"Employee with ID {employee_id} is not a builder."
                 else:
-                    # Check if the employee is already assigned to the order
                     if any(builder["employeeID"] == employee_id for builder in order.get("assignedBuilders", [])):
                         error_message = f"Order {order_id} is already assigned to Employee {employee_id}."
                     else:
-                        # Assign the employee to the order
                         orders_coll.update_one(
                             {"orderID": order_id},
                             {"$push": {"assignedBuilders": {
@@ -696,27 +642,22 @@ def usecase_student2_nosql():
 @app.route("/report_student2_nosql", methods=["GET", "POST"])
 def report_student2_nosql():
     db = connect_to_mongo()
-    orders_coll = db.orders  # NoSQL orders collection
+    orders_coll = db.orders
     specialization_filter = None
     builders = []
 
     try:
         if request.method == "POST":
-            # Fetch the specialization filter from the form
             specialization_filter = request.form.get("specialization", "").strip()
 
-        # Query all orders from the collection
         orders = list(orders_coll.find({}, {"_id": 0}))
 
-        # Iterate over orders to extract builders and their yachts
         for order in orders:
-            yachts = order.get("yachts", [])  # Fetch yachts array for the order
+            yachts = order.get("yachts", [])
             for builder in order.get("assignedBuilders", []):
-                # Apply specialization filter if specified
                 if specialization_filter and builder.get("specialization", "") != specialization_filter:
                     continue
 
-                # Join builder with each yacht in the order
                 for yacht in yachts:
                     builders.append({
                         "employeeID": builder["employeeID"],
@@ -737,5 +678,4 @@ def report_student2_nosql():
 
 
 if __name__ == "__main__":
-    # Run the Flask app on 0.0.0.0 so Docker can map the port
     app.run(host="0.0.0.0", port=5001, debug=True)
